@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国象棋</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #f5f0e6 0%, #e8e0d0 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        h1 {
+            font-size: 2rem;
+            color: #333;
+            margin-bottom: 20px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        #board-wrapper {
+            position: relative;
+            display: flex;
+            gap: 20px;
+        }
+        .captured-area {
+            width: 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding-top: 20px;
+        }
+        .captured-area h3 {
+            font-size: 0.9rem;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .captured-pieces {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+            min-height: 200px;
+        }
+        .mini-piece {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .mini-piece.red { background: #c41e3a; color: #fff; }
+        .mini-piece.black { background: #333; color: #fff; }
+        #canvas-container {
+            position: relative;
+        }
+        #board {
+            display: block;
+            border: 2px solid #8b7355;
+            border-radius: 4px;
+        }
+        #pieces {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .piece {
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s, box-shadow 0.1s;
+            pointer-events: auto;
+        }
+        .piece.red {
+            background: linear-gradient(145deg, #e63946 0%, #c41e3a 100%);
+            color: #fff;
+            border: 2px solid #8b0000;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        }
+        .piece.black {
+            background: linear-gradient(145deg, #4a4a4a 0%, #2d2d2d 100%);
+            color: #fff;
+            border: 2px solid #1a1a1a;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        }
+        .piece:hover { transform: scale(1.05); }
+        .piece.selected {
+            box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.8);
+            transform: scale(1.1);
+        }
+        .piece.hint {
+            box-shadow: 0 0 10px 3px rgba(0, 255, 0, 0.6);
+        }
+        .piece.ai-hint {
+            box-shadow: 0 0 15px 5px rgba(255, 165, 0, 0.8);
+        }
+        .valid-move {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(0, 128, 0, 0.4);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+        }
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.8);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .mode-tabs {
+            display: flex;
+            gap: 5px;
+            margin-right: 15px;
+        }
+        .mode-tab {
+            padding: 8px 16px;
+            border: none;
+            background: #ddd;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+        .mode-tab.active {
+            background: #c41e3a;
+            color: #fff;
+        }
+        .difficulty-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-right: 15px;
+        }
+        .difficulty-group.hidden { display: none; }
+        .difficulty-group label {
+            font-size: 0.9rem;
+        }
+        .difficulty-group input[type="radio"] { margin-left: 5px; }
+        .action-btn {
+            padding: 8px 16px;
+            border: 1px solid #8b7355;
+            background: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+        .action-btn:hover { background: #f0f0f0; }
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .action-btn:disabled:hover { background: #fff; }
+        #sound-btn {
+            width: 40px;
+            padding: 8px;
+        }
+        #evaluation {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        .panel {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 30px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .panel.active { display: block; }
+        .panel h2 {
+            margin-bottom: 15px;
+            border-bottom: 2px solid #8b7355;
+            padding-bottom: 10px;
+        }
+        .panel-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+        .panel-close:hover { color: #000; }
+        #replay-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .replay-move {
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .replay-move:hover { background: #f0f0f0; }
+        .replay-move.current { background: #c41e3a; color: #fff; }
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .stats-table td, .stats-table th {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        #thinking {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 20px 40px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            z-index: 50;
+        }
+        #thinking.active { display: block; }
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 90;
+        }
+        .overlay.active { display: block; }
+        @media (max-width: 600px) {
+            #board-wrapper { flex-direction: column; }
+            .captured-area { flex-direction: row; width: 100%; }
+            .captured-pieces { min-height: auto; }
+        }
+    </style>
+</head>
+<body>
+    <h1>中国象棋</h1>
+
+    <div id="game-container">
+        <div id="board-wrapper">
+            <div class="captured-area" id="red-captured">
+                <h3>红方</h3>
+                <div class="captured-pieces"></div>
+            </div>
+
+            <div id="canvas-container">
+                <canvas id="board" width="406" height="450"></canvas>
+                <div id="pieces"></div>
+            </div>
+
+            <div class="captured-area" id="black-captured">
+                <h3>黑方</h3>
+                <div class="captured-pieces"></div>
+            </div>
+        </div>
+
+        <div id="controls">
+            <div class="mode-tabs">
+                <button class="mode-tab active" data-mode="pvp">双人对战</button>
+                <button class="mode-tab" data-mode="pvc">人机对战</button>
+            </div>
+
+            <div class="difficulty-group hidden" id="difficulty-group">
+                <label>难度：</label>
+                <input type="radio" name="difficulty" value="easy" id="diff-easy"> <label for="diff-easy">简单</label>
+                <input type="radio" name="difficulty" value="medium" id="diff-medium" checked> <label for="diff-medium">中等</label>
+                <input type="radio" name="difficulty" value="hard" id="diff-hard"> <label for="diff-hard">困难</label>
+            </div>
+
+            <button class="action-btn" id="undo-btn">悔棋</button>
+            <button class="action-btn" id="reset-btn">重新开始</button>
+            <button class="action-btn" id="sound-btn">音效</button>
+            <button class="action-btn" id="replay-btn">复盘</button>
+            <button class="action-btn" id="stats-btn">统计</button>
+        </div>
+
+        <div id="evaluation"></div>
+    </div>
+
+    <div id="thinking">思考中...</div>
+    <div class="overlay"></div>
+
+    <div class="panel" id="replay-panel">
+        <span class="panel-close">&times;</span>
+        <h2>复盘</h2>
+        <div id="replay-list"></div>
+    </div>
+
+    <div class="panel" id="stats-panel">
+        <span class="panel-close">&times;</span>
+        <h2>游戏统计</h2>
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>项目</th>
+                    <th>红方</th>
+                    <th>黑方</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>胜利场数</td>
+                    <td id="red-wins">0</td>
+                    <td id="black-wins">0</td>
+                </tr>
+                <tr>
+                    <td>失败场数</td>
+                    <td id="red-losses">0</td>
+                    <td id="black-losses">0</td>
+                </tr>
+                <tr>
+                    <td>总计</td>
+                    <td id="red-total">0</td>
+                    <td id="black-total">0</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Piece values for evaluation
+        const PIECE_VALUES = {
+            k: 10000, // King
+            r: 9,     // Rook
+            n: 4.5,   // Knight
+            b: 2,     // Bishop
+            a: 2,     // Advisor
+            c: 4.5,   // Cannon
+            p: 1      // Pawn
+        };
+    </script>
+</body>
+</html>
