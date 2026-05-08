@@ -6,6 +6,17 @@
     <title>中国象棋</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --piece-size: 44px;
+            --mini-piece-size: 30px;
+            --valid-move-size: 20px;
+            --board-width: 406px;
+            --board-height: 450px;
+            --cell-size: 45px;
+            --primary-color: #c41e3a;
+            --line-color: #8b7355;
+            --bg-color: #f5f0e6;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Noto Serif SC', serif;
@@ -53,8 +64,8 @@
             min-height: 200px;
         }
         .mini-piece {
-            width: 30px;
-            height: 30px;
+            width: var(--mini-piece-size);
+            height: var(--mini-piece-size);
             border-radius: 4px;
             display: flex;
             align-items: center;
@@ -82,8 +93,8 @@
         }
         .piece {
             position: absolute;
-            width: 44px;
-            height: 44px;
+            width: var(--piece-size);
+            height: var(--piece-size);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -120,8 +131,8 @@
         }
         .valid-move {
             position: absolute;
-            width: 20px;
-            height: 20px;
+            width: var(--valid-move-size);
+            height: var(--valid-move-size);
             border-radius: 50%;
             background: rgba(0, 128, 0, 0.4);
             pointer-events: none;
@@ -286,7 +297,7 @@
             </div>
 
             <div id="canvas-container">
-                <canvas id="board" width="406" height="450"></canvas>
+                <canvas id="board" width="var(--board-width)" height="var(--board-height)"></canvas>
                 <div id="pieces"></div>
             </div>
 
