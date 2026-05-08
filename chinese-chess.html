@@ -1326,8 +1326,8 @@
                         if (!piece) continue;
 
                         const isRed = piece === piece.toUpperCase();
-                        // AI plays black
-                        if (isRed !== this.gameState.isBlackTurn()) continue;
+                        // Only process pieces that match the current turn
+                        if (isRed !== this.gameState.isRedTurn()) continue;
 
                         const validMoves = MoveValidator.getValidMoves(this.gameState, col, row);
                         validMoves.forEach(move => {
