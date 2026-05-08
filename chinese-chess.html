@@ -1498,6 +1498,7 @@
                     const isRed = piece === piece.toUpperCase();
                     const isCurrentPlayerRed = this.gameState.isRedTurn();
                     if (isRed === isCurrentPlayerRed) {
+                        // Clicking own piece - select it
                         this.pieceManager.deselectAll();
                         this.pieceManager.clearValidMoves();
 
@@ -1509,16 +1510,26 @@
                             this.pieceManager.showValidMoves(moves);
                         }
                         return;
+                    } else {
+                        // Clicking enemy piece - if we have a selected piece, try to capture
+                        if (this.pieceManager.selectedPiece) {
+                            const selectedCol = parseInt(this.pieceManager.selectedPiece.dataset.col);
+                            const selectedRow = parseInt(this.pieceManager.selectedPiece.dataset.row);
+
+                            if (MoveValidator.isValidMove(this.gameState, selectedCol, selectedRow, col, row)) {
+                                this.executeMove(selectedCol, selectedRow, col, row);
+                            }
+                        }
                     }
-                }
+                } else {
+                    // Clicking empty square - try to move if piece selected
+                    if (this.pieceManager.selectedPiece) {
+                        const selectedCol = parseInt(this.pieceManager.selectedPiece.dataset.col);
+                        const selectedRow = parseInt(this.pieceManager.selectedPiece.dataset.row);
 
-                // If a piece is selected, try to move
-                if (this.pieceManager.selectedPiece) {
-                    const selectedCol = parseInt(this.pieceManager.selectedPiece.dataset.col);
-                    const selectedRow = parseInt(this.pieceManager.selectedPiece.dataset.row);
-
-                    if (MoveValidator.isValidMove(this.gameState, selectedCol, selectedRow, col, row)) {
-                        this.executeMove(selectedCol, selectedRow, col, row);
+                        if (MoveValidator.isValidMove(this.gameState, selectedCol, selectedRow, col, row)) {
+                            this.executeMove(selectedCol, selectedRow, col, row);
+                        }
                     }
                 }
             }
@@ -1541,6 +1552,8 @@
                 const piece = this.gameState.getPiece(fromCol, fromRow);
                 const captured = this.gameState.getPiece(toCol, toRow);
 
+                console.log('executeMove:', {fromCol, fromRow, toCol, toRow, piece, captured});
+
                 // Make move in game state
                 this.gameState.makeMove(fromCol, fromRow, toCol, toRow);
 
@@ -1560,6 +1573,7 @@
 
                 // Handle captured piece
                 if (captured) {
+                    console.log('Captured piece detected:', captured);
                     this.pieceManager.removePiece(toCol, toRow);
                     this.audioController.playCapture();
                     this.updateCapturedDisplay();
