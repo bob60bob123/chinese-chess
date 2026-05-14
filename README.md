@@ -1,4 +1,4 @@
-# 楚汉争雄 - Chinese Chess
+# Chu Han Zhen Xiong - Chinese Chess
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.0.0-blue.svg" alt="Version">
@@ -6,67 +6,46 @@
   <img src="https://img.shields.io/badge/HTML5-Game-orange.svg" alt="HTML5">
 </p>
 
-**楚汉争雄** 是一个纯 HTML5 实现的中国象棋游戏，无需任何外部依赖。直接在浏览器中运行，支持人人对战和人机对战。
+**Chu Han Zhen Xiong** is a pure HTML5 implementation of Chinese Chess. No external dependencies required. Runs directly in the browser, supporting both human-vs-human and human-vs-AI gameplay.
 
 [English](README.md) | [简体中文](README_zh-CN.md) | [日本語](README_ja.md) | [한국어](README_ko.md) | [Español](README_es.md)
 
 ---
 
-## 游戏截图
+## Features
 
-```
-┌─────────────────────────────────────────┐
-│            楚河    汉界                  │
-│  ┌─────────────────────────────────┐    │
-│  │ 车 馬 象 仕 将 仕 象 馬 车        │    │
-│  │                          砲 砲   │    │
-│  │                               │    │
-│  │ 卒   卒   卒      卒   卒       │    │
-│  │────────────────────────────────  │    │
-│  │ 兵   兵   兵      兵   兵       │    │
-│  │                               │    │
-│  │                          炮 炮  │    │
-│  │ 俥 馬 相 仕 帅 仕 相 馬 俥       │    │
-│  └─────────────────────────────────┘    │
-└─────────────────────────────────────────┘
-```
+### Chess Rules
+- ✅ Complete Chinese Chess rule implementation
+- ✅ 7 piece types: General, Advisor, Elephant, Chariot, Horse, Cannon, Soldier
+- ✅ Horse blocking and elephant blocking rules
+- ✅ Generals facing rule
+- ✅ Check, checkmate, and stalemate detection
 
----
+### Game Modes
+- 🔹 **Human vs Human** - Two players on the same device
+- 🔹 **Human vs AI** - Play against AI with three difficulty levels
 
-## 功能特性
+### AI Difficulty Levels
+| Level | Description |
+|-------|-------------|
+| Beginner | For beginners, AI may make mistakes |
+| Intermediate | Basic attack and defense awareness |
+| Expert | Strong in positioning and tactics |
 
-### 棋类规则
-- ✅ 完整的中国象棋规则实现
-- ✅ 7 种棋子：帅/将、士/仕、象/相、车/俥、马、炮/砲、兵/卒
-- ✅ 蹩马腿、塞象眼规则
-- ✅ 将帅照面规则
-- ✅ 将军、将死、困毙判定
-
-### 游戏模式
-- 🔹 **人人对战** - 双人同机对弈
-- 🔹 **人机对战** - 与 AI 对弈，支持三种难度
-
-### AI 难度
-| 难度 | 描述 |
-|------|------|
-| 入门 | 适合新手，AI 会犯错 |
-| 中等 | 具有基础攻防意识 |
-| 高手 | 擅长布局与战术 |
-
-### 辅助功能
-- 🎵 走子音效、吃子音效、将军提示音
-- 📜 走棋记录
-- ↩️ 悔棋功能
-- 🔄 重新开始
+### Additional Features
+- 🎵 Sound effects for moves, captures, and check alerts
+- 📜 Move history
+- ↩️ Undo functionality
+- 🔄 Restart game
 
 ---
 
-## 如何运行
+## How to Play
 
-### 方法一：直接打开
-双击 `index.html` 文件，在任意现代浏览器中打开即可游戏。
+### Method 1: Direct Open
+Double-click the `index.html` file and open it in any modern browser.
 
-### 方法二：本地服务器
+### Method 2: Local Server
 ```bash
 # Python 3
 python -m http.server 8080
@@ -77,38 +56,29 @@ npx serve .
 # PHP
 php -S localhost:8080
 ```
-然后访问 `http://localhost:8080`
+Then visit `http://localhost:8080`
 
 ---
 
-## 键盘操作
+## Technical Stack
 
-| 操作 | 说明 |
-|------|------|
-| 点击棋子 | 选中 |
-| 点击交叉点 | 移动棋子 |
+| Technology | Description |
+|------------|-------------|
+| HTML5 | Semantic structure |
+| CSS3 | Board styling, animations |
+| JavaScript | Game logic, AI, interaction |
+| Canvas/SVG | Board rendering |
 
----
-
-## 技术架构
-
-| 技术 | 说明 |
-|------|------|
-| HTML5 | 语义化结构 |
-| CSS3 | 棋盘样式、动画效果 |
-| JavaScript | 游戏逻辑、AI、交互 |
-| Canvas/SVG | 棋盘绘制 |
-
-- **零依赖** - 纯原生实现，无需任何外部库
-- **响应式** - 自适应桌面和移动设备
-- **可访问** - 支持 ARIA 标签
+- **Zero Dependencies** - Pure native implementation
+- **Responsive** - Adapts to desktop and mobile
+- **Accessible** - ARIA label support
 
 ---
 
-## 浏览器兼容性
+## Browser Compatibility
 
-| 浏览器 | 支持版本 |
-|--------|----------|
+| Browser | Supported Version |
+|---------|-------------------|
 | Chrome | 80+ |
 | Firefox | 75+ |
 | Safari | 13+ |
@@ -116,42 +86,36 @@ php -S localhost:8080
 
 ---
 
-## 项目结构
+## Project Structure
 
 ```
 chinese-chess/
-├── index.html        # 主页面（包含全部代码）
-├── SPEC.md          # 项目规格文档
-├── README.md         # 英文说明
-├── README_zh-CN.md   # 简体中文
-├── README_ja.md      # 日本語
-├── README_ko.md      # 한국어
-├── README_es.md      # Español
-├── LICENSE           # MIT 许可证
-└── .gitignore        # Git 忽略文件
+├── index.html        # Main page (contains all code)
+├── SPEC.md          # Project specification
+├── README.md         # English
+├── README_zh-CN.md   # Simplified Chinese
+├── README_ja.md      # Japanese
+├── README_ko.md      # Korean
+├── README_es.md      # Spanish
+├── LICENSE           # MIT License
+└── .gitignore        # Git ignore file
 ```
 
 ---
 
-## 开发
+## Development
 
-### 运行测试
-在浏览器控制台中执行：
+### Run Tests
+Execute in browser console:
 ```javascript
 runSelfTests()
 ```
 
-### 调试模式
-访问 `index.html?test` 页面将自动运行所有测试。
+### Debug Mode
+Visit `index.html?test` to automatically run all tests.
 
 ---
 
-## 许可证
+## License
 
-本项目采用 [MIT 许可证](LICENSE)。
-
----
-
-## 致谢
-
-中国象棋是中国传统文化的瑰宝，本游戏旨在推广这一古老而精妙的棋类运动。
+This project is licensed under the [MIT License](LICENSE).
