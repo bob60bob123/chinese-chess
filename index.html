@@ -1,0 +1,1310 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>楚汉争雄 - 中国象棋</title>
+  <style>
+    :root {
+      --wood: #d7a35c;
+      --wood-dark: #8d4f20;
+      --ink: #251309;
+      --red: #b61822;
+      --black: #111111;
+      --gold: #f7d56b;
+      --panel: #fff8e9;
+      --board-size: min(92vw, 620px);
+      --gap: calc(var(--board-size) / 8);
+      --point-size: clamp(34px, calc(var(--board-size) / 11), 56px);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Noto Serif SC", "SimSun", Georgia, serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 25% 15%, rgba(255, 255, 255, 0.45), transparent 28%),
+        linear-gradient(135deg, #573018 0%, #9a5e2c 45%, #3c2115 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .app {
+      width: min(1120px, 100%);
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) 280px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .table {
+      border: 2px solid rgba(45, 20, 6, 0.38);
+      background: linear-gradient(145deg, #efc987, #c5833f);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35), inset 0 0 0 10px rgba(84, 40, 10, 0.16);
+      padding: clamp(14px, 2vw, 24px);
+      border-radius: 8px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .board {
+      position: relative;
+      width: var(--board-size);
+      height: calc(var(--gap) * 9);
+      max-height: calc(100vh - 72px);
+      aspect-ratio: 8 / 9;
+      isolation: isolate;
+      touch-action: manipulation;
+    }
+
+    .board-svg {
+      position: absolute;
+      inset: 0;
+      overflow: visible;
+      z-index: 0;
+    }
+
+    .river {
+      position: absolute;
+      left: calc(var(--gap) * 1.1);
+      right: calc(var(--gap) * 1.1);
+      top: calc(var(--gap) * 4);
+      height: var(--gap);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: rgba(71, 31, 7, 0.72);
+      font-size: clamp(20px, 4vw, 42px);
+      font-weight: 700;
+      letter-spacing: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .points {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+    }
+
+    .point {
+      position: absolute;
+      width: var(--point-size);
+      height: var(--point-size);
+      transform: translate(-50%, -50%);
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      color: inherit;
+      font: inherit;
+    }
+
+    .point::after {
+      content: "";
+      width: 13px;
+      height: 13px;
+      border-radius: 999px;
+      background: rgba(68, 31, 8, 0.08);
+      opacity: 0;
+      transition: opacity 0.12s ease, transform 0.12s ease;
+    }
+
+    .point:hover::after,
+    .point.hint::after {
+      opacity: 1;
+      transform: scale(1.45);
+    }
+
+    .piece {
+      width: calc(var(--point-size) * 0.92);
+      height: calc(var(--point-size) * 0.92);
+      border-radius: 999px;
+      border: 3px solid currentColor;
+      display: grid;
+      place-items: center;
+      font-size: clamp(20px, calc(var(--point-size) * 0.52), 31px);
+      font-weight: 800;
+      line-height: 1;
+      background:
+        radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.86), transparent 22%),
+        linear-gradient(145deg, #ffefc0, #c9883e 78%);
+      box-shadow: 0 7px 14px rgba(34, 13, 2, 0.34), inset 0 0 0 2px rgba(255, 244, 198, 0.64);
+      user-select: none;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+    }
+
+    .piece.red {
+      color: var(--red);
+    }
+
+    .piece.black {
+      color: var(--black);
+    }
+
+    .point.selected .piece {
+      transform: translateY(-4px) scale(1.06);
+      box-shadow: 0 0 0 5px rgba(247, 213, 107, 0.85), 0 12px 24px rgba(34, 13, 2, 0.4);
+      filter: saturate(1.12);
+    }
+
+    .point.legal::after {
+      opacity: 1;
+      background: rgba(25, 112, 50, 0.32);
+      transform: scale(1.65);
+    }
+
+    .point.capture::after {
+      opacity: 1;
+      width: calc(var(--point-size) * 0.78);
+      height: calc(var(--point-size) * 0.78);
+      border: 3px solid rgba(177, 24, 34, 0.74);
+      background: transparent;
+      transform: none;
+    }
+
+    .sidebar {
+      border-radius: 8px;
+      background: rgba(255, 248, 233, 0.95);
+      border: 1px solid rgba(67, 29, 8, 0.2);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.1;
+    }
+
+    .status {
+      min-height: 92px;
+      border: 1px solid rgba(67, 29, 8, 0.16);
+      background: #fffdf6;
+      border-radius: 8px;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .turn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .turn-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55);
+    }
+
+    .turn-dot.black {
+      background: var(--black);
+    }
+
+    .message {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.5;
+      color: #5f3219;
+    }
+
+    .players {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .player {
+      border-radius: 8px;
+      border: 1px solid rgba(67, 29, 8, 0.14);
+      background: #fffdf6;
+      padding: 12px;
+    }
+
+    .player strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .captured {
+      min-height: 24px;
+      font-size: 18px;
+      color: #6f3d20;
+      word-break: break-all;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    .settings {
+      border: 1px solid rgba(67, 29, 8, 0.14);
+      background: #fffdf6;
+      border-radius: 8px;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      font-family: system-ui, sans-serif;
+    }
+
+    .setting-label {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 700;
+      color: #5f3219;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .segmented button {
+      min-height: 36px;
+      border: 1px solid rgba(67, 29, 8, 0.24);
+      border-radius: 8px;
+      background: #fff8e9;
+      color: #3a2417;
+      font: 700 14px/1 system-ui, sans-serif;
+      cursor: pointer;
+    }
+
+    .segmented button.active {
+      background: #3a2417;
+      color: #fff8e9;
+    }
+
+    .segmented.triple {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    button.control {
+      flex: 1;
+      min-height: 42px;
+      border: 1px solid rgba(67, 29, 8, 0.28);
+      border-radius: 8px;
+      background: #3a2417;
+      color: #fff8e9;
+      font: 700 15px/1 system-ui, sans-serif;
+      cursor: pointer;
+      transition: transform 0.12s ease, background 0.12s ease;
+    }
+
+    button.control:hover {
+      background: #5a3218;
+      transform: translateY(-1px);
+    }
+
+    button.control:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+      transform: none;
+    }
+
+    .log {
+      max-height: 218px;
+      overflow: auto;
+      border-radius: 8px;
+      border: 1px solid rgba(67, 29, 8, 0.14);
+      background: #fffdf6;
+      padding: 10px;
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .log ol {
+      margin: 0;
+      padding-left: 24px;
+    }
+
+    dialog {
+      width: min(360px, calc(100vw - 36px));
+      border: 0;
+      border-radius: 8px;
+      padding: 0;
+      background: #fff8e9;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    }
+
+    dialog::backdrop {
+      background: rgba(20, 10, 4, 0.58);
+    }
+
+    .modal {
+      padding: 22px;
+      text-align: center;
+      display: grid;
+      gap: 14px;
+    }
+
+    .modal h2 {
+      margin: 0;
+      font-size: 26px;
+    }
+
+    .modal p {
+      margin: 0;
+      color: #5f3219;
+    }
+
+    @media (max-width: 900px) {
+      body {
+        align-items: start;
+      }
+
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        order: -1;
+      }
+    }
+
+    @media (max-width: 520px) {
+      body {
+        padding: 10px;
+      }
+
+      .players {
+        grid-template-columns: 1fr;
+      }
+
+      .title {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="table" aria-label="中国象棋棋盘">
+      <div class="board" id="board">
+        <svg class="board-svg" viewBox="0 0 800 900" preserveAspectRatio="none" aria-hidden="true">
+          <rect x="0" y="0" width="800" height="900" fill="rgba(252, 211, 137, 0.34)"></rect>
+          <g stroke="#4a230b" stroke-width="4" fill="none" stroke-linecap="square">
+            <rect x="0" y="0" width="800" height="900"></rect>
+            <path d="M0 0H800M0 100H800M0 200H800M0 300H800M0 400H800M0 500H800M0 600H800M0 700H800M0 800H800M0 900H800"></path>
+            <path d="M0 0V900M100 0V400M100 500V900M200 0V400M200 500V900M300 0V400M300 500V900M400 0V900M500 0V400M500 500V900M600 0V400M600 500V900M700 0V400M700 500V900M800 0V900"></path>
+            <path d="M300 0L500 200M500 0L300 200M300 700L500 900M500 700L300 900"></path>
+          </g>
+        </svg>
+        <div class="river" aria-hidden="true"><span>楚河</span><span>汉界</span></div>
+        <div class="points" id="points"></div>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <h1 class="title">楚汉争雄</h1>
+      <section class="status" aria-live="polite">
+        <div class="turn"><span id="turnDot" class="turn-dot"></span><span id="turnText">红方回合</span></div>
+        <p class="message" id="message">红方先行。点击己方棋子，再点击目标交叉点。</p>
+      </section>
+      <section class="players">
+        <div class="player">
+          <strong>红方吃子</strong>
+          <div class="captured" id="redCaptured"></div>
+        </div>
+        <div class="player">
+          <strong>黑方吃子</strong>
+          <div class="captured" id="blackCaptured"></div>
+        </div>
+      </section>
+      <section class="settings" aria-label="对战设置">
+        <p class="setting-label">对战模式</p>
+        <div class="segmented" role="group" aria-label="对战模式">
+          <button id="humanModeBtn" class="active" type="button">人人对战</button>
+          <button id="aiModeBtn" type="button">人与 AI</button>
+        </div>
+        <p class="setting-label">玩家执子</p>
+        <div class="segmented" role="group" aria-label="玩家执子">
+          <button id="playRedBtn" class="active" type="button">执红</button>
+          <button id="playBlackBtn" type="button">执黑</button>
+        </div>
+        <p class="setting-label">AI 难度</p>
+        <div class="segmented triple" id="aiLevelGroup" role="group" aria-label="AI难度">
+          <button id="aiEasyBtn" type="button">入门</button>
+          <button id="aiMediumBtn" class="active" type="button">中等</button>
+          <button id="aiHardBtn" type="button">高手</button>
+        </div>
+      </section>
+      <div class="controls">
+        <button class="control" id="restartBtn" type="button">重新开始</button>
+        <button class="control" id="undoBtn" type="button" disabled>悔棋</button>
+      </div>
+      <section class="log" aria-label="走棋记录">
+        <ol id="moveLog"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <dialog id="gameDialog">
+    <div class="modal">
+      <h2 id="dialogTitle">对局结束</h2>
+      <p id="dialogText"></p>
+      <button class="control" id="dialogRestart" type="button">重新开始</button>
+    </div>
+  </dialog>
+
+  <script>
+    const ROWS = 10;
+    const COLS = 9;
+    const RED = "red";
+    const BLACK = "black";
+    const labels = {
+      red: { general: "帅", advisor: "仕", elephant: "相", chariot: "车", horse: "马", cannon: "炮", soldier: "兵" },
+      black: { general: "将", advisor: "士", elephant: "象", chariot: "车", horse: "马", cannon: "炮", soldier: "卒" }
+    };
+    const typeNames = { general: "将帅", advisor: "士仕", elephant: "象相", chariot: "车", horse: "马", cannon: "炮", soldier: "兵卒" };
+    const pieceValues = { general: 10000, chariot: 900, cannon: 450, horse: 400, elephant: 180, advisor: 180, soldier: 100 };
+
+    // --- AI Levels ---
+    const AI_LEVELS = {
+      easy: {
+        name: "入门",
+        depth: 0,
+        randomFactor: 0.85,
+        thinkTime: 300,
+        desc: "适合新手，AI会犯错"
+      },
+      medium: {
+        name: "中等",
+        depth: 2,
+        randomFactor: 0.20,
+        thinkTime: 600,
+        desc: "具有基础攻防意识"
+      },
+      hard: {
+        name: "高手",
+        depth: 3,
+        randomFactor: 0.05,
+        thinkTime: 1200,
+        desc: "擅长布局与战术"
+      }
+    };
+
+    // Position bonus tables (row, col) -> bonus (×10 for soldiers)
+    function getPositionBonus(color, type, row, col) {
+      // 红方从row=9往上走，row越小越靠前
+      // 黑方从row=0往下走，row越大越靠前
+      const r = color === RED ? row : 9 - row; // 统一：数字越大越靠前（过河）
+
+      if (type === "soldier") {
+        // 兵：过河前1分，过河后最高5分
+        if (r <= 2) return 1;
+        if (r <= 4) return 3;
+        return 5;
+      }
+      if (type === "chariot") {
+        // 车：占据要道加分，中心线和中路
+        const centerBonus = col === 4 ? 4 : (col === 3 || col === 5) ? 2 : 0;
+        const rankBonus = Math.min(r, 5) * 1;
+        return centerBonus + rankBonus;
+      }
+      if (type === "horse") {
+        // 马：位置灵活性
+        const center = Math.abs(col - 4);
+        return (4 - center) * 1 + Math.min(r, 5);
+      }
+      if (type === "cannon") {
+        // 炮：后排支援型，中间列+高地
+        const center = col === 4 ? 4 : (col === 3 || col === 5) ? 2 : 0;
+        return center + r;
+      }
+      if (type === "elephant") {
+        return r < 5 ? 2 : 0;
+      }
+      if (type === "advisor") {
+        return 1;
+      }
+      return 0;
+    }
+
+    function evaluateBoard(board, color) {
+      const opponentColor = opponent(color);
+      let score = 0;
+      for (let row = 0; row < ROWS; row += 1) {
+        for (let col = 0; col < COLS; col += 1) {
+          const p = board[row][col];
+          if (!p) continue;
+          const base = pieceValues[p.type] || 0;
+          const pos = getPositionBonus(p.color, p.type, row, col);
+          const value = base + pos * 10;
+          if (p.color === color) score += value;
+          else score -= value;
+        }
+      }
+      // 将军/将死惩罚
+      if (isInCheck(board, opponentColor)) score += 90;
+      if (!hasAnyLegalMove(board, opponentColor)) score += 100000;
+      return score;
+    }
+
+    function minimax(board, depth, alpha, beta, maximizing, color, aiColor, level) {
+      const moves = allLegalMoves(board, maximizing ? color : opponent(color));
+      if (depth === 0 || moves.length === 0) {
+        return { score: evaluateBoard(board, aiColor), move: null };
+      }
+
+      const cfg = AI_LEVELS[level];
+
+      if (maximizing) {
+        let best = { score: -Infinity, move: null };
+        for (const mv of moves) {
+          const next = boardAfterMove(board, mv.from, mv.to);
+          const result = minimax(next, depth - 1, alpha, beta, false, opponent(color), aiColor, level);
+          if (result.score > best.score) {
+            best = { score: result.score, move: mv };
+          }
+          alpha = Math.max(alpha, result.score);
+          if (beta <= alpha) break;
+        }
+        return best;
+      } else {
+        let best = { score: Infinity, move: null };
+        for (const mv of moves) {
+          const next = boardAfterMove(board, mv.from, mv.to);
+          const result = minimax(next, depth - 1, alpha, beta, true, color, aiColor, level);
+          if (result.score < best.score) {
+            best = { score: result.score, move: mv };
+          }
+          beta = Math.min(beta, result.score);
+          if (beta <= alpha) break;
+        }
+        return best;
+      }
+    }
+
+    function evaluateMoveWithLevel(board, move, color, level) {
+      const next = boardAfterMove(board, move.from, move.to);
+      let score = 0;
+      if (move.captured) score += (pieceValues[move.captured.type] || 0) * 10;
+      if (isInCheck(next, opponent(color))) score += 90;
+      if (!hasAnyLegalMove(next, opponent(color))) score += 100000;
+      if (move.piece.type === "soldier") {
+        score += color === RED ? (6 - move.to.row) * 8 : (move.to.row - 3) * 8;
+      }
+      const centerDistance = Math.abs(move.to.col - 4);
+      score += Math.max(0, 4 - centerDistance) * 3;
+      // Position bonus
+      score += getPositionBonus(color, move.piece.type, move.to.row, move.to.col) * 10;
+      return score;
+    }
+    const state = {
+      board: [],
+      turn: RED,
+      selected: null,
+      legalTargets: [],
+      history: [],
+      capturedByRed: [],
+      capturedByBlack: [],
+      gameOver: false,
+      mode: "human",
+      humanColor: RED,
+      aiThinking: false,
+      aiTimer: null,
+      aiLevel: "medium"
+    };
+
+    const pointsEl = document.getElementById("points");
+    const turnText = document.getElementById("turnText");
+    const turnDot = document.getElementById("turnDot");
+    const messageEl = document.getElementById("message");
+    const redCapturedEl = document.getElementById("redCaptured");
+    const blackCapturedEl = document.getElementById("blackCaptured");
+    const moveLogEl = document.getElementById("moveLog");
+    const undoBtn = document.getElementById("undoBtn");
+    const humanModeBtn = document.getElementById("humanModeBtn");
+    const aiModeBtn = document.getElementById("aiModeBtn");
+    const playRedBtn = document.getElementById("playRedBtn");
+    const playBlackBtn = document.getElementById("playBlackBtn");
+    const aiEasyBtn = document.getElementById("aiEasyBtn");
+    const aiMediumBtn = document.getElementById("aiMediumBtn");
+    const aiHardBtn = document.getElementById("aiHardBtn");
+    const dialog = document.getElementById("gameDialog");
+    const dialogTitle = document.getElementById("dialogTitle");
+    const dialogText = document.getElementById("dialogText");
+    let audioContext = null;
+
+    function emptyBoard() {
+      return Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    }
+
+    function piece(color, type) {
+      return { color, type, id: `${color}-${type}-${Math.random().toString(36).slice(2)}` };
+    }
+
+    function createInitialBoard() {
+      const board = emptyBoard();
+      const back = ["chariot", "horse", "elephant", "advisor", "general", "advisor", "elephant", "horse", "chariot"];
+      back.forEach((type, col) => {
+        board[0][col] = piece(BLACK, type);
+        board[9][col] = piece(RED, type);
+      });
+      board[2][1] = piece(BLACK, "cannon");
+      board[2][7] = piece(BLACK, "cannon");
+      board[7][1] = piece(RED, "cannon");
+      board[7][7] = piece(RED, "cannon");
+      [0, 2, 4, 6, 8].forEach((col) => {
+        board[3][col] = piece(BLACK, "soldier");
+        board[6][col] = piece(RED, "soldier");
+      });
+      return board;
+    }
+
+    function cloneBoard(board) {
+      return board.map((row) => row.map((item) => item ? { ...item } : null));
+    }
+
+    function inBounds(row, col) {
+      return row >= 0 && row < ROWS && col >= 0 && col < COLS;
+    }
+
+    function palace(color, row, col) {
+      const rowMin = color === RED ? 7 : 0;
+      const rowMax = color === RED ? 9 : 2;
+      return row >= rowMin && row <= rowMax && col >= 3 && col <= 5;
+    }
+
+    function crossedRiver(color, row) {
+      return color === RED ? row <= 4 : row >= 5;
+    }
+
+    function countBetween(board, from, to) {
+      if (from.row !== to.row && from.col !== to.col) return Infinity;
+      const rowStep = Math.sign(to.row - from.row);
+      const colStep = Math.sign(to.col - from.col);
+      let row = from.row + rowStep;
+      let col = from.col + colStep;
+      let count = 0;
+      while (row !== to.row || col !== to.col) {
+        if (board[row][col]) count += 1;
+        row += rowStep;
+        col += colStep;
+      }
+      return count;
+    }
+
+    function generalsFace(board) {
+      let redGeneral = null;
+      let blackGeneral = null;
+      for (let row = 0; row < ROWS; row += 1) {
+        for (let col = 0; col < COLS; col += 1) {
+          const current = board[row][col];
+          if (current && current.type === "general") {
+            if (current.color === RED) redGeneral = { row, col };
+            if (current.color === BLACK) blackGeneral = { row, col };
+          }
+        }
+      }
+      if (!redGeneral || !blackGeneral || redGeneral.col !== blackGeneral.col) return false;
+      return countBetween(board, redGeneral, blackGeneral) === 0;
+    }
+
+    function canPieceReach(board, from, to) {
+      if (!inBounds(to.row, to.col)) return false;
+      const current = board[from.row][from.col];
+      if (!current) return false;
+      const target = board[to.row][to.col];
+      if (target && target.color === current.color) return false;
+      const dr = to.row - from.row;
+      const dc = to.col - from.col;
+      const adr = Math.abs(dr);
+      const adc = Math.abs(dc);
+
+      switch (current.type) {
+        case "general":
+          return palace(current.color, to.row, to.col) && adr + adc === 1;
+        case "advisor":
+          return palace(current.color, to.row, to.col) && adr === 1 && adc === 1;
+        case "elephant": {
+          if (adr !== 2 || adc !== 2) return false;
+          if (current.color === RED && to.row < 5) return false;
+          if (current.color === BLACK && to.row > 4) return false;
+          return !board[from.row + dr / 2][from.col + dc / 2];
+        }
+        case "chariot":
+          return (dr === 0 || dc === 0) && countBetween(board, from, to) === 0;
+        case "horse": {
+          if (!((adr === 2 && adc === 1) || (adr === 1 && adc === 2))) return false;
+          const leg = adr === 2
+            ? { row: from.row + Math.sign(dr), col: from.col }
+            : { row: from.row, col: from.col + Math.sign(dc) };
+          return !board[leg.row][leg.col];
+        }
+        case "cannon": {
+          if (dr !== 0 && dc !== 0) return false;
+          const screens = countBetween(board, from, to);
+          return target ? screens === 1 : screens === 0;
+        }
+        case "soldier": {
+          const forward = current.color === RED ? -1 : 1;
+          if (dr === forward && dc === 0) return true;
+          return crossedRiver(current.color, from.row) && dr === 0 && adc === 1;
+        }
+        default:
+          return false;
+      }
+    }
+
+    function findGeneral(board, color) {
+      for (let row = 0; row < ROWS; row += 1) {
+        for (let col = 0; col < COLS; col += 1) {
+          const current = board[row][col];
+          if (current && current.color === color && current.type === "general") return { row, col };
+        }
+      }
+      return null;
+    }
+
+    function isSquareAttacked(board, square, byColor) {
+      for (let row = 0; row < ROWS; row += 1) {
+        for (let col = 0; col < COLS; col += 1) {
+          const current = board[row][col];
+          if (current && current.color === byColor && canPieceReach(board, { row, col }, square)) return true;
+        }
+      }
+      return false;
+    }
+
+    function opponent(color) {
+      return color === RED ? BLACK : RED;
+    }
+
+    function sideName(color) {
+      return color === RED ? "红方" : "黑方";
+    }
+
+    function isAiTurn() {
+      return state.mode === "ai" && state.turn !== state.humanColor && !state.gameOver;
+    }
+
+    function isInCheck(board, color) {
+      const general = findGeneral(board, color);
+      if (!general) return true;
+      return generalsFace(board) || isSquareAttacked(board, general, opponent(color));
+    }
+
+    function boardAfterMove(board, from, to) {
+      const next = cloneBoard(board);
+      next[to.row][to.col] = next[from.row][from.col];
+      next[from.row][from.col] = null;
+      return next;
+    }
+
+    function isLegalMove(board, from, to, color) {
+      if (!inBounds(from.row, from.col) || !inBounds(to.row, to.col)) return false;
+      const current = board[from.row][from.col];
+      if (!current || current.color !== color) return false;
+      const target = board[to.row][to.col];
+      if (target && target.type === "general") return false;
+      if (!canPieceReach(board, from, to)) return false;
+      const next = boardAfterMove(board, from, to);
+      return !generalsFace(next) && !isInCheck(next, color);
+    }
+
+    function legalMovesForPiece(board, from) {
+      const current = board[from.row][from.col];
+      if (!current) return [];
+      const moves = [];
+      for (let row = 0; row < ROWS; row += 1) {
+        for (let col = 0; col < COLS; col += 1) {
+          const to = { row, col };
+          if (isLegalMove(board, from, to, current.color)) moves.push(to);
+        }
+      }
+      return moves;
+    }
+
+    function hasAnyLegalMove(board, color) {
+      for (let row = 0; row < ROWS; row += 1) {
+        for (let col = 0; col < COLS; col += 1) {
+          const current = board[row][col];
+          if (current && current.color === color && legalMovesForPiece(board, { row, col }).length > 0) return true;
+        }
+      }
+      return false;
+    }
+
+    function allLegalMoves(board, color) {
+      const moves = [];
+      for (let row = 0; row < ROWS; row += 1) {
+        for (let col = 0; col < COLS; col += 1) {
+          const current = board[row][col];
+          if (!current || current.color !== color) continue;
+          const from = { row, col };
+          legalMovesForPiece(board, from).forEach((to) => {
+            moves.push({ from, to, piece: current, captured: board[to.row][to.col] });
+          });
+        }
+      }
+      return moves;
+    }
+
+    function evaluateMove(board, move, color) {
+      const next = boardAfterMove(board, move.from, move.to);
+      let score = Math.random() * 8;
+      if (move.captured) score += pieceValues[move.captured.type] || 0;
+      if (isInCheck(next, opponent(color))) score += 90;
+      if (!hasAnyLegalMove(next, opponent(color))) score += 100000;
+      if (move.piece.type === "soldier") {
+        score += color === RED ? (6 - move.to.row) * 8 : (move.to.row - 3) * 8;
+      }
+      const centerDistance = Math.abs(move.to.col - 4);
+      score += Math.max(0, 4 - centerDistance) * 3;
+      return score;
+    }
+
+    function chooseAiMove() {
+      const moves = allLegalMoves(state.board, state.turn);
+      if (moves.length === 0) return null;
+      const level = state.aiLevel;
+      const cfg = AI_LEVELS[level];
+
+      if (cfg.depth === 0) {
+        // Level 1: greedy with heavy randomness
+        const scored = moves.map((move) => ({
+          move,
+          score: evaluateMoveWithLevel(state.board, move, state.turn, level)
+        }));
+        scored.sort((a, b) => b.score - a.score);
+        const top = scored.filter((m) => m.score >= scored[0].score - 60);
+        return top[Math.floor(Math.random() * top.length)].move;
+      }
+
+      // Level 2 & 3: minimax with alpha-beta
+      const result = minimax(
+        state.board,
+        cfg.depth,
+        -Infinity,
+        Infinity,
+        true,
+        state.turn,
+        state.turn,
+        level
+      );
+
+      if (!result.move && moves.length > 0) {
+        // Fallback if minimax returns null
+        return moves[Math.floor(Math.random() * moves.length)];
+      }
+
+      // Add slight randomness to avoid perfect play
+      if (cfg.randomFactor > 0 && Math.random() < cfg.randomFactor) {
+        const scored = moves.map((move) => ({
+          move,
+          score: evaluateMoveWithLevel(state.board, move, state.turn, level)
+        }));
+        scored.sort((a, b) => b.score - a.score);
+        const topCount = Math.max(1, Math.floor(scored.length * cfg.randomFactor));
+        const top = scored.slice(0, topCount);
+        return top[Math.floor(Math.random() * top.length)].move;
+      }
+
+      return result.move;
+    }
+
+    function cancelAiTimer() {
+      if (state.aiTimer) {
+        clearTimeout(state.aiTimer);
+        state.aiTimer = null;
+      }
+      state.aiThinking = false;
+    }
+
+    function queueAiMove() {
+      if (!isAiTurn() || state.aiThinking) return;
+      state.aiThinking = true;
+      clearSelection();
+      setMessage(`AI 正在为${sideName(state.turn)}思考...`);
+      render();
+      const thinkTime = (AI_LEVELS[state.aiLevel] || AI_LEVELS.medium).thinkTime;
+      state.aiTimer = setTimeout(() => {
+        state.aiTimer = null;
+        state.aiThinking = false;
+        if (!isAiTurn()) {
+          render();
+          return;
+        }
+        const move = chooseAiMove();
+        if (move) movePiece(move.from, move.to, true);
+        else render();
+      }, thinkTime);
+    }
+
+    function playSound(kind) {
+      try {
+        audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const tones = {
+          move: [340, 0.055],
+          capture: [190, 0.11],
+          check: [620, 0.16],
+          end: [480, 0.25]
+        };
+        const [freq, duration] = tones[kind] || tones.move;
+        osc.type = kind === "capture" ? "triangle" : "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.16, audioContext.currentTime + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + duration);
+        osc.connect(gain).connect(audioContext.destination);
+        osc.start();
+        osc.stop(audioContext.currentTime + duration + 0.02);
+      } catch (error) {
+        // Audio is optional; browsers may block it before the first user gesture.
+      }
+    }
+
+    function labelFor(item) {
+      return labels[item.color][item.type];
+    }
+
+    function pointStyle(row, col) {
+      return `left: ${(col / 8) * 100}%; top: ${(row / 9) * 100}%;`;
+    }
+
+    function render() {
+      pointsEl.innerHTML = "";
+      const legalKeys = new Set(state.legalTargets.map((target) => `${target.row}-${target.col}`));
+      for (let row = 0; row < ROWS; row += 1) {
+        for (let col = 0; col < COLS; col += 1) {
+          const item = state.board[row][col];
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "point";
+          btn.style.cssText = pointStyle(row, col);
+          btn.dataset.row = row;
+          btn.dataset.col = col;
+          btn.setAttribute("aria-label", item ? `${item.color === RED ? "红" : "黑"}方${typeNames[item.type]}，${row + 1}行${col + 1}列` : `${row + 1}行${col + 1}列`);
+          if (state.selected && state.selected.row === row && state.selected.col === col) btn.classList.add("selected");
+          if (legalKeys.has(`${row}-${col}`)) btn.classList.add(item ? "capture" : "legal");
+          if (item) {
+            const pieceEl = document.createElement("span");
+            pieceEl.className = `piece ${item.color}`;
+            pieceEl.textContent = labelFor(item);
+            btn.append(pieceEl);
+          }
+          btn.addEventListener("click", () => handlePointClick(row, col));
+          pointsEl.append(btn);
+        }
+      }
+      turnText.textContent = `${state.turn === RED ? "红方" : "黑方"}回合`;
+      turnDot.classList.toggle("black", state.turn === BLACK);
+      redCapturedEl.textContent = state.capturedByRed.map(labelFor).join(" ");
+      blackCapturedEl.textContent = state.capturedByBlack.map(labelFor).join(" ");
+      humanModeBtn.classList.toggle("active", state.mode === "human");
+      aiModeBtn.classList.toggle("active", state.mode === "ai");
+      playRedBtn.classList.toggle("active", state.humanColor === RED);
+      playBlackBtn.classList.toggle("active", state.humanColor === BLACK);
+      playRedBtn.disabled = state.mode !== "ai";
+      playBlackBtn.disabled = state.mode !== "ai";
+      aiEasyBtn.classList.toggle("active", state.aiLevel === "easy");
+      aiMediumBtn.classList.toggle("active", state.aiLevel === "medium");
+      aiHardBtn.classList.toggle("active", state.aiLevel === "hard");
+      undoBtn.disabled = state.history.length === 0 || state.gameOver || state.aiThinking;
+    }
+
+    function setMessage(text) {
+      messageEl.textContent = text;
+    }
+
+    function selectPiece(row, col) {
+      state.selected = { row, col };
+      state.legalTargets = legalMovesForPiece(state.board, state.selected);
+      const item = state.board[row][col];
+      setMessage(`已选中${item.color === RED ? "红" : "黑"}方${labelFor(item)}。`);
+      render();
+    }
+
+    function clearSelection() {
+      state.selected = null;
+      state.legalTargets = [];
+    }
+
+    function sameSquare(a, b) {
+      return a && b && a.row === b.row && a.col === b.col;
+    }
+
+    function coord(pos) {
+      return `${pos.row + 1}行${pos.col + 1}列`;
+    }
+
+    function appendMoveLog(entry) {
+      const li = document.createElement("li");
+      li.textContent = entry;
+      moveLogEl.append(li);
+      li.scrollIntoView({ block: "nearest" });
+    }
+
+    function refreshMoveLog() {
+      moveLogEl.innerHTML = "";
+      state.history.forEach((item) => appendMoveLog(item.log));
+    }
+
+    function handlePointClick(row, col) {
+      if (state.gameOver || state.aiThinking || isAiTurn()) return;
+      const current = state.board[row][col];
+      if (!state.selected) {
+        if (current && current.color === state.turn) selectPiece(row, col);
+        return;
+      }
+      if (current && current.color === state.turn) {
+        selectPiece(row, col);
+        return;
+      }
+      const destination = { row, col };
+      const legal = state.legalTargets.some((target) => sameSquare(target, destination));
+      if (!legal) {
+        const selectedPiece = state.board[state.selected.row][state.selected.col];
+        setMessage(`${labelFor(selectedPiece)}不能走到这里。`);
+        return;
+      }
+      movePiece(state.selected, destination);
+    }
+
+    function snapshot() {
+      return {
+        board: cloneBoard(state.board),
+        turn: state.turn,
+        capturedByRed: state.capturedByRed.map((item) => ({ ...item })),
+        capturedByBlack: state.capturedByBlack.map((item) => ({ ...item })),
+        log: ""
+      };
+    }
+
+    function movePiece(from, to, byAi = false) {
+      const moving = state.board[from.row][from.col];
+      const captured = state.board[to.row][to.col];
+      const before = snapshot();
+      const actor = byAi ? "AI " : "";
+      const log = `${actor}${moving.color === RED ? "红" : "黑"}${labelFor(moving)}：${coord(from)} → ${coord(to)}${captured ? `，吃${labelFor(captured)}` : ""}`;
+      before.log = log;
+      state.history.push(before);
+      state.board[to.row][to.col] = moving;
+      state.board[from.row][from.col] = null;
+      if (captured) {
+        if (moving.color === RED) state.capturedByRed.push(captured);
+        else state.capturedByBlack.push(captured);
+      }
+      clearSelection();
+      appendMoveLog(log);
+
+      const nextTurn = opponent(state.turn);
+      const nextInCheck = isInCheck(state.board, nextTurn);
+      const nextHasMove = hasAnyLegalMove(state.board, nextTurn);
+      if (!nextHasMove) {
+        state.gameOver = true;
+        const winner = state.turn === RED ? "红方" : "黑方";
+        const result = nextInCheck ? "将死" : "困毙";
+        setMessage(`${winner}${result}获胜。`);
+        render();
+        playSound("end");
+        showEndDialog(`${winner}获胜`, `${result}，对局结束。`);
+        return;
+      }
+      state.turn = nextTurn;
+      if (nextInCheck) {
+        setMessage(`${state.turn === RED ? "红方" : "黑方"}被将军，必须应将。`);
+        playSound("check");
+      } else {
+        setMessage(`${state.turn === RED ? "红方" : "黑方"}回合。`);
+        playSound(captured ? "capture" : "move");
+      }
+      render();
+      queueAiMove();
+    }
+
+    function showEndDialog(title, text) {
+      dialogTitle.textContent = title;
+      dialogText.textContent = text;
+      if (typeof dialog.showModal === "function") dialog.showModal();
+    }
+
+    function restart() {
+      cancelAiTimer();
+      state.board = createInitialBoard();
+      state.turn = RED;
+      state.selected = null;
+      state.legalTargets = [];
+      state.history = [];
+      state.capturedByRed = [];
+      state.capturedByBlack = [];
+      state.gameOver = false;
+      moveLogEl.innerHTML = "";
+      setMessage("红方先行。点击己方棋子，再点击目标交叉点。");
+      if (dialog.open) dialog.close();
+      render();
+      queueAiMove();
+    }
+
+    function restoreSnapshot(last) {
+      state.board = cloneBoard(last.board);
+      state.turn = last.turn;
+      state.capturedByRed = last.capturedByRed.map((item) => ({ ...item }));
+      state.capturedByBlack = last.capturedByBlack.map((item) => ({ ...item }));
+    }
+
+    function undoOnce() {
+      const last = state.history.pop();
+      if (!last) return null;
+      restoreSnapshot(last);
+      return last;
+    }
+
+    function undo() {
+      cancelAiTimer();
+      const last = undoOnce();
+      if (!last) return;
+      if (state.mode === "ai" && isAiTurn() && state.history.length > 0) undoOnce();
+      state.gameOver = false;
+      clearSelection();
+      refreshMoveLog();
+      setMessage(`已撤销：${last.log}`);
+      if (dialog.open) dialog.close();
+      render();
+    }
+
+    function runSelfTests() {
+      const saved = {
+        board: cloneBoard(state.board),
+        turn: state.turn,
+        selected: state.selected ? { ...state.selected } : null,
+        legalTargets: state.legalTargets.map((target) => ({ ...target })),
+        history: state.history.map((item) => ({
+          ...item,
+          board: cloneBoard(item.board),
+          capturedByRed: item.capturedByRed.map((pieceItem) => ({ ...pieceItem })),
+          capturedByBlack: item.capturedByBlack.map((pieceItem) => ({ ...pieceItem }))
+        })),
+        capturedByRed: state.capturedByRed.map((item) => ({ ...item })),
+        capturedByBlack: state.capturedByBlack.map((item) => ({ ...item })),
+        gameOver: state.gameOver,
+        mode: state.mode,
+        humanColor: state.humanColor,
+        aiThinking: false,
+        aiTimer: null
+      };
+      cancelAiTimer();
+      const checks = [];
+      const assert = (name, condition) => checks.push({ name, pass: Boolean(condition) });
+      let board = createInitialBoard();
+      assert("初始棋子为 32 枚", board.flat().filter(Boolean).length === 32);
+      assert("红方先手兵向前合法", isLegalMove(board, { row: 6, col: 0 }, { row: 5, col: 0 }, RED));
+      assert("红方未过河兵不能横走", !isLegalMove(board, { row: 6, col: 0 }, { row: 6, col: 1 }, RED));
+      assert("炮有一个炮架可以吃子", isLegalMove(board, { row: 7, col: 1 }, { row: 0, col: 1 }, RED));
+
+      board = emptyBoard();
+      board[9][4] = piece(RED, "general");
+      board[0][4] = piece(BLACK, "general");
+      board[7][1] = piece(RED, "cannon");
+      board[3][1] = piece(BLACK, "soldier");
+      assert("炮无炮架不能吃子", !isLegalMove(board, { row: 7, col: 1 }, { row: 3, col: 1 }, RED));
+
+      board = emptyBoard();
+      board[9][4] = piece(RED, "general");
+      board[0][4] = piece(BLACK, "general");
+      board[5][4] = piece(RED, "chariot");
+      assert("将帅不能无阻隔照面", !isLegalMove(board, { row: 5, col: 4 }, { row: 5, col: 3 }, RED));
+
+      board = emptyBoard();
+      board[9][4] = piece(RED, "general");
+      board[0][4] = piece(BLACK, "general");
+      board[7][1] = piece(RED, "horse");
+      board[6][1] = piece(RED, "soldier");
+      assert("蹩马腿规则生效", !isLegalMove(board, { row: 7, col: 1 }, { row: 5, col: 2 }, RED));
+
+      board = emptyBoard();
+      board[9][4] = piece(RED, "general");
+      board[0][4] = piece(BLACK, "general");
+      board[9][2] = piece(RED, "elephant");
+      board[8][3] = piece(RED, "soldier");
+      assert("塞象眼规则生效", !isLegalMove(board, { row: 9, col: 2 }, { row: 7, col: 4 }, RED));
+
+      board = emptyBoard();
+      board[9][4] = piece(RED, "general");
+      board[0][4] = piece(BLACK, "general");
+      board[1][4] = piece(RED, "chariot");
+      assert("将军检测生效", isInCheck(board, BLACK));
+      state.board = createInitialBoard();
+      state.turn = BLACK;
+      const aiMove = chooseAiMove();
+      assert("AI 可以生成黑方合法走法", aiMove && isLegalMove(state.board, aiMove.from, aiMove.to, BLACK));
+
+      Object.assign(state, saved);
+      return checks;
+    }
+
+    function setAiLevel(level) {
+      if (!AI_LEVELS[level]) return;
+      cancelAiTimer();
+      state.aiLevel = level;
+      clearSelection();
+      const names = { easy: "入门", medium: "中等", hard: "高手" };
+      setMessage(`AI 难度已切换为「${names[level]}」。${state.mode === "ai" ? "切换难度后重新开始。" : ""}`);
+      restart();
+    }
+
+    function setMode(mode) {
+      cancelAiTimer();
+      state.mode = mode;
+      clearSelection();
+      setMessage(mode === "ai" ? `人与 AI：玩家执${state.humanColor === RED ? "红" : "黑"}。` : "人人对战模式。");
+      render();
+      queueAiMove();
+    }
+
+    function setHumanColor(color) {
+      cancelAiTimer();
+      state.humanColor = color;
+      clearSelection();
+      setMessage(`玩家执${color === RED ? "红" : "黑"}。`);
+      restart();
+    }
+
+    document.getElementById("restartBtn").addEventListener("click", restart);
+    document.getElementById("dialogRestart").addEventListener("click", restart);
+    undoBtn.addEventListener("click", undo);
+    humanModeBtn.addEventListener("click", () => setMode("human"));
+    aiModeBtn.addEventListener("click", () => setMode("ai"));
+    playRedBtn.addEventListener("click", () => setHumanColor(RED));
+    playBlackBtn.addEventListener("click", () => setHumanColor(BLACK));
+    aiEasyBtn.addEventListener("click", () => setAiLevel("easy"));
+    aiMediumBtn.addEventListener("click", () => setAiLevel("medium"));
+    aiHardBtn.addEventListener("click", () => setAiLevel("hard"));
+
+    restart();
+    window.runSelfTests = runSelfTests;
+    if (new URLSearchParams(window.location.search).has("test")) {
+      window.addEventListener("load", () => {
+        const results = runSelfTests();
+        const failed = results.filter((item) => !item.pass);
+        console.log(`SELF_TEST ${failed.length === 0 ? "PASS" : "FAIL"} ${JSON.stringify(results)}`);
+      });
+    }
+  </script>
+</body>
+</html>
