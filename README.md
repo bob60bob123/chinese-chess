@@ -34,6 +34,7 @@
 
 ### Additional Features
 - 🎵 Sound effects for moves, captures, and check alerts
+- 🎶 Background music with Web Audio API (toggle on/off)
 - 📜 Move history
 - ↩️ Undo functionality
 - 🔄 Restart game

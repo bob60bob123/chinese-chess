@@ -34,6 +34,7 @@
 
 ### Funciones Adicionales
 - 🎵 Sonidos de movimiento, captura y aviso de jaque
+- 🎶 Música de fondo con Web Audio API (activar/desactivar)
 - 📜 Registro de movimientos
 - ↩️ Función de deshacer
 - 🔄 Reiniciar

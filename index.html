@@ -453,6 +453,7 @@
       <div class="controls">
         <button class="control" id="restartBtn" type="button">重新开始</button>
         <button class="control" id="undoBtn" type="button" disabled>悔棋</button>
+        <button class="control" id="musicBtn" type="button">音乐：开</button>
       </div>
       <section class="log" aria-label="走棋记录">
         <ol id="moveLog"></ol>
@@ -625,7 +626,11 @@
       humanColor: RED,
       aiThinking: false,
       aiTimer: null,
-      aiLevel: "medium"
+      aiLevel: "medium",
+      musicEnabled: true,
+      musicStarted: false,
+      musicTimer: null,
+      musicNodes: []
     };
 
     const pointsEl = document.getElementById("points");
@@ -636,6 +641,7 @@
     const blackCapturedEl = document.getElementById("blackCaptured");
     const moveLogEl = document.getElementById("moveLog");
     const undoBtn = document.getElementById("undoBtn");
+    const musicBtn = document.getElementById("musicBtn");
     const humanModeBtn = document.getElementById("humanModeBtn");
     const aiModeBtn = document.getElementById("aiModeBtn");
     const playRedBtn = document.getElementById("playRedBtn");
@@ -954,9 +960,130 @@
       }, thinkTime);
     }
 
+    function ensureAudioContext() {
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtor) throw new Error("Web Audio API is unavailable");
+      audioContext = audioContext || new AudioCtor();
+      if (audioContext.state === "suspended" && typeof audioContext.resume === "function") {
+        audioContext.resume();
+      }
+      return audioContext;
+    }
+
+    function cleanupMusicNode(entry) {
+      state.musicNodes = state.musicNodes.filter((node) => node !== entry);
+      entry.nodes.forEach((node) => {
+        try {
+          if (typeof node.disconnect === "function") node.disconnect();
+        } catch (error) {
+          // Nodes may already be disconnected after a browser cleanup.
+        }
+      });
+    }
+
+    function playMusicNote(freq, startTime, duration, voice = "lead") {
+      const ctx = ensureAudioContext();
+      const lead = voice === "lead";
+      const osc = ctx.createOscillator();
+      const shimmer = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const delay = ctx.createDelay();
+      const echo = ctx.createGain();
+      const entry = { nodes: [osc, shimmer, gain, delay, echo] };
+
+      osc.type = lead ? "triangle" : "sine";
+      shimmer.type = "sine";
+      osc.frequency.setValueAtTime(freq, startTime);
+      shimmer.frequency.setValueAtTime(freq * (lead ? 2 : 1.5), startTime);
+      delay.delayTime.setValueAtTime(lead ? 0.18 : 0.28, startTime);
+      echo.gain.setValueAtTime(lead ? 0.16 : 0.09, startTime);
+
+      const peak = lead ? 0.035 : 0.022;
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(peak, startTime + 0.035);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+      osc.connect(gain);
+      shimmer.connect(gain);
+      gain.connect(ctx.destination);
+      gain.connect(delay);
+      delay.connect(echo);
+      echo.connect(ctx.destination);
+
+      state.musicNodes.push(entry);
+      osc.start(startTime);
+      shimmer.start(startTime);
+      osc.stop(startTime + duration + 0.12);
+      shimmer.stop(startTime + duration + 0.12);
+      osc.onended = () => cleanupMusicNode(entry);
+    }
+
+    function scheduleMusicLoop() {
+      if (!state.musicEnabled || !state.musicStarted) return;
+      const ctx = ensureAudioContext();
+      const beat = 0.62;
+      const start = ctx.currentTime + 0.08;
+      const scale = [293.66, 329.63, 369.99, 440.00, 493.88, 587.33, 659.25, 739.99, 880.00];
+      const phrases = [
+        [0, 2, 3, 5, 3, 2, 0, null, 2, 3, 5, 6, 5, 3, 2, null],
+        [3, 5, 6, 8, 6, 5, 3, null, 5, 6, 5, 3, 2, 0, 2, null],
+        [2, 3, 5, 3, 2, 0, 2, null, 0, 2, 3, 5, 6, 5, 3, null]
+      ];
+      const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+      phrase.forEach((degree, index) => {
+        if (degree === null) return;
+        playMusicNote(scale[degree], start + index * beat, beat * 0.78, "lead");
+      });
+      [0, 4, 8, 12].forEach((index) => {
+        const bass = index === 8 ? scale[3] / 2 : scale[0] / 2;
+        playMusicNote(bass, start + index * beat, beat * 2.7, "bass");
+      });
+      state.musicTimer = setTimeout(scheduleMusicLoop, phrase.length * beat * 1000);
+    }
+
+    function startMusicOnce() {
+      if (!state.musicEnabled || state.musicStarted) return;
+      try {
+        ensureAudioContext();
+        state.musicStarted = true;
+        scheduleMusicLoop();
+        render();
+      } catch (error) {
+        state.musicStarted = false;
+      }
+    }
+
+    function stopMusic() {
+      if (state.musicTimer) {
+        clearTimeout(state.musicTimer);
+        state.musicTimer = null;
+      }
+      state.musicNodes.slice().forEach((entry) => {
+        entry.nodes.forEach((node) => {
+          try {
+            if (typeof node.stop === "function") node.stop(0);
+          } catch (error) {
+            // Oscillators can only be stopped once.
+          }
+        });
+        cleanupMusicNode(entry);
+      });
+      state.musicStarted = false;
+    }
+
+    function toggleMusic() {
+      state.musicEnabled = !state.musicEnabled;
+      if (!state.musicEnabled) {
+        stopMusic();
+      } else {
+        startMusicOnce();
+      }
+      render();
+    }
+
     function playSound(kind) {
       try {
-        audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = ensureAudioContext();
         const osc = audioContext.createOscillator();
         const gain = audioContext.createGain();
         const tones = {
@@ -968,12 +1095,12 @@
         const [freq, duration] = tones[kind] || tones.move;
         osc.type = kind === "capture" ? "triangle" : "sine";
         osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.16, audioContext.currentTime + 0.012);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + duration);
-        osc.connect(gain).connect(audioContext.destination);
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+        osc.connect(gain).connect(ctx.destination);
         osc.start();
-        osc.stop(audioContext.currentTime + duration + 0.02);
+        osc.stop(ctx.currentTime + duration + 0.02);
       } catch (error) {
         // Audio is optional; browsers may block it before the first user gesture.
       }
@@ -1025,6 +1152,7 @@
       aiEasyBtn.classList.toggle("active", state.aiLevel === "easy");
       aiMediumBtn.classList.toggle("active", state.aiLevel === "medium");
       aiHardBtn.classList.toggle("active", state.aiLevel === "hard");
+      musicBtn.textContent = state.musicEnabled ? "音乐：开" : "音乐：关";
       undoBtn.disabled = state.history.length === 0 || state.gameOver || state.aiThinking;
     }
 
@@ -1112,6 +1240,7 @@
       }
       clearSelection();
       appendMoveLog(log);
+      if (!byAi) startMusicOnce();
 
       const nextTurn = opponent(state.turn);
       const nextInCheck = isInCheck(state.board, nextTurn);
@@ -1206,7 +1335,12 @@
         mode: state.mode,
         humanColor: state.humanColor,
         aiThinking: false,
-        aiTimer: null
+        aiTimer: null,
+        aiLevel: state.aiLevel,
+        musicEnabled: state.musicEnabled,
+        musicStarted: state.musicStarted,
+        musicTimer: state.musicTimer,
+        musicNodes: state.musicNodes.slice()
       };
       cancelAiTimer();
       const checks = [];
@@ -1288,6 +1422,7 @@
     document.getElementById("restartBtn").addEventListener("click", restart);
     document.getElementById("dialogRestart").addEventListener("click", restart);
     undoBtn.addEventListener("click", undo);
+    musicBtn.addEventListener("click", toggleMusic);
     humanModeBtn.addEventListener("click", () => setMode("human"));
     aiModeBtn.addEventListener("click", () => setMode("ai"));
     playRedBtn.addEventListener("click", () => setHumanColor(RED));
@@ -1298,6 +1433,12 @@
 
     restart();
     window.runSelfTests = runSelfTests;
+    window.getMusicState = () => ({
+      enabled: state.musicEnabled,
+      started: state.musicStarted,
+      hasTimer: Boolean(state.musicTimer),
+      nodeCount: state.musicNodes.length
+    });
     if (new URLSearchParams(window.location.search).has("test")) {
       window.addEventListener("load", () => {
         const results = runSelfTests();
